@@ -14,8 +14,10 @@ train ()
 
 test ()
 {
-		# tests the performance of the previously trained model first argument is the name of the model, the second specifies the testing batch
-		python neural_network/TestNetwork.py data/$2/Raw $1 results/$1/hypothesis data/$2/table.csv results/$1 data/$2/{Dur,F{0,1,2,3,4,5}norm,Intensitynorm}
+	# tests the performance of the previously trained model first argument is the name of the model, the second specifies the testing batch
+	rm -r results/Model/hypothesis
+	mkdir results/Model/hypothesis
+	python neural_network/Test.py Model results/Model/hypothesis data/dev/table.csv results/Model 0 data/dev/{Intensitynorm,F{0,1,2,3,4,5}norm,Dur}
 }
 
 
@@ -32,18 +34,22 @@ buildpraat ()
 }
 trainpraat ()
 {
-	python neural_network/TrainNetwork.py PraatModel data/train/Praat data/train/balanced.csv 99 results/PraatModel/errorlog.txt 25 -r -a data/train/{Dur,F{0,1,2,3,4,5}norm,Intensitynorm}
-	python neural_network/TestNetwork.py data/dev/Praat PraatModel results/PraatModel/hypothesis data/dev/table.csv results/PraatModel 0 data/dev/{Dur,F{0,1,2,3,4,5}norm,Intensitynorm}
-	rm -r initial
-	mkdir initial
-	mv results/PraatModel/* initial
+	python neural_network/Train.py Model data/train/balanced.csv results/Model/errorlog.txt 25 -r data/train/{Intensitynorm,F{0,1,2,3,4,5}norm,Dur}
+	rm -r results/Model/hypothesis
+	mkdir results/Model/hypothesis
+	python neural_network/Test.py Model results/Model/hypothesis data/dev/table.csv results/Model 0 data/dev/{Intensitynorm,F{0,1,2,3,4,5}norm,Dur}
+	rm -r results/Model/initial
+	mkdir results/Model/initial
+	mv results/Model/{errorlog,hypothesis_analysis,statistics}.txt results/Model/initial
+	mv results/Model/hypothesis results/Model/initial
 
 	for ((i=0;i<$1;++i));
 		do
-		python neural_network/TrainNetwork.py PraatModel data/train/Praat data/train/balanced.csv 0.001 results/PraatModel/errorlog.txt 25 data/train/{Dur,F{0,1,2,3,4,5}norm,Intensitynorm}
-
-		python neural_network/TestNetwork.py data/dev/Praat  PraatModel results/PraatModel/hypothesis data/dev/table.csv results/PraatModel $i data/dev/{Dur,F{0,1,2,3,4,5}norm,Intensitynorm}
-		reset PraatModel $i;
+		python neural_network/Train.py Model data/train/balanced.csv results/Model/errorlog.txt 25 data/train/{Intensitynorm,F{0,1,2,3,4,5}norm,Dur}
+		rm -r results/Model/hypothesis
+		mkdir results/Model/hypothesis
+		python neural_network/Test.py Model results/Model/hypothesis data/dev/table.csv results/Model $i data/dev/{Intensitynorm,F{0,1,2,3,4,5}norm,Dur}
+		reset Model $i;
 		done
 	echo -e '\a'
 }
@@ -60,6 +66,7 @@ reset ()
 }
 
 
-buildpraat
+#buildpraat
 trainpraat 100
+#test
 #train BaselineModel 100

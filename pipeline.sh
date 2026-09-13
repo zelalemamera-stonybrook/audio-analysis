@@ -107,10 +107,10 @@ balance ()
 
 normalize ()
 {
-	#normalizes the batches in question by subtracting them from the mean over the directory
+	#normalizes the batches in question by subtracting them from the mean over the directory and dividing by the standard deviation
 	for batch in {train,test,dev};
 		do
-		for feature in {F{0,1,2,3,4,5},Intensity};
+		for feature in {Dur,F{0,1,2,3,4,5},Intensity};
 			do
 			rm -r "data/"$batch"/"$feature"norm"
 			mkdir "data/"$batch"/"$feature"norm"
@@ -119,4 +119,5 @@ normalize ()
 		done
 }
 
-align&syllabify&featurize&split&balance&normalize
+#align&syllabify&featurize&split&balance&normalize
+normalize

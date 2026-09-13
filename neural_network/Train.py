@@ -1,5 +1,5 @@
 '''
-This program controls the training of the provided neural network. The SGD algorithm is used.
+This program controls the training of Model. The SGD algorithm is used.
 '''
 import importlib
 import argparse
@@ -17,10 +17,10 @@ SEED = 3529145006359120161
 
 DEBUG = False
 
-def train(network, source: str, table: str, fit: float, attention: bool, log: str, batchsize: int, *features):
+def train(network, table: str, log: str, batchsize: int, *features):
 	'''
 	Trains the neural network exactly one epoch. An epoch is defined as one training pass over the input data. The data is batched before being passed to the model. Error is computed per batch
-	and backpropagated before loading in the next batch.
+	and backpropagated before loading in the next batch. The average, minimum, and maximum batch error over the whole training session is logged as the error history for this epoch.
 	'''
 	table = pd.read_csv(table)
 	table = table.set_index('Unnamed: 0')
@@ -37,20 +37,12 @@ def train(network, source: str, table: str, fit: float, attention: bool, log: st
 	for i in range(numberofbatches):
 		optim.zero_grad()
 		error = 0
-		x, y = getbatch(i, source, table)
-		if attention:
-			f = getfeaturebatch(i, features, table, maxfeaturedimension)
-		else:
-			f = listfull(None, batchsize)
-		for vector, feature, gold in zip(x, f, y):
-			if True:
-				vectori = torch.stack(vector)
-				print('input vector statistics', 'length', vectori.shape, torch.min(vectori).item(), torch.max(vectori).item(), torch.mean(vectori).item(), 'dimensions', torch.count_nonzero(vectori, dim=1).tolist())
-				if feature:
-					featurei = torch.stack([torch.stack(i) for i in feature])
-					print('input feature statistics', featurei.shape, torch.min(featurei).item(), torch.max(featurei).item(), torch.mean(featurei).item())
+		f, y = getfeaturebatch(i, features, table, maxfeaturedimension)
+		for feature, gold in zip(f, y):
+			if DEBUG:
+				print('input feature statistics', feature.shape, torch.min(feature).item(), torch.max(feature).item(), torch.mean(feature).item())
 				print(gold)
-			y_hat = network.forward(vector, feature)
+			y_hat = network.forward(feature)
 			if True:
 				print( y_hat, 'gold', gold)
 			error += compute_loss(y_hat, gold)
@@ -113,25 +105,55 @@ def getfeaturebatch(i: int, features: tuple, table: list, max: int):
 	global SEED
 	batch = table[i]
 	output = []
+	y = []
 	for i, j in batch:
 		wordfeatures = []
-		for folder in features:
+		word_len = 0
+		for f, folder in enumerate(features):
 			word = []
 			files = sorted(list(folder.glob(f'{i}_*')))
 			for file in files:
 				tensor = torch.load(file)
 				if type(tensor) == float:
 					tensor = torch.tensor([tensor])
-					g_cpu = torch.Generator()
-					tensor = (torch.nn.init.uniform_(torch.empty((max,)), -1, 1, g_cpu.manual_seed(SEED))) * tensor
-				word.append(zeropad(tensor, max))
+				word.append(feature_encoder(f + 1, max) + zeropad(tensor, max))
 			wordfeatures.append(word)
-		output.append(wordfeatures)
-	return output
+			word_len = len(word)
+		output.append(swap_dimensions(wordfeatures))
+		y.append(binarize(j - 1, word_len))
+	return output, y
+
+def feature_encoder(f: int, dim: int):
+	'''
+	Takes the id of the feature and applies the vaswani et al function to it. The reasoning for this is that feature vectors with the same
+	value should not be identical from the  point of view of the model, adding a feature encoding allows the model to distinguish individual
+	features by their unique id.
+	'''
+	vector = torch.empty((dim,))
+	for d in range(len(vector)):
+		if d % 2 == 0:
+			vector[d] = torch.sin( torch.tensor(f / (10000 ** (d / dim))))
+		else:
+			vector[d] = torch.cos(torch.tensor(f / (10000 ** (d / dim))))
+	return vector
+
+def swap_dimensions(matrix: list):
+	'''
+	Swaps the dimension of matrix to be syllable dimension initial. Currently, wordfeatures has the wrong dimension because the first dimension is
+	features, then syllables, the model assumes that the first dimension is syllables, then features.
+	'''
+	second_dim = len(matrix[-1])
+	swapped = []
+	for i in range(second_dim):
+		syllable = []
+		for word in matrix:
+			syllable.append(word[i])
+		swapped.append(torch.stack(syllable))
+	return torch.stack(swapped)
 
 def getmaxfeaturedimension(features: tuple):
 	'''
-	in order to use feature vectors in the attention network, they should all be padded to the same size. It is assumed that each directory has a contant length of vectors
+	in order to use feature vectors in the attention network, they should all be padded to the same size. It is assumed that each director has a contant length of vectors
 	across all datapoints since the features were generated on a padded audio dataset. This function picks one random file from each folder and returns the maximum vector size
 	across all of the folders.
 	'''
@@ -291,18 +313,15 @@ def loadmodel(module: str, reset: bool):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
-	parser.add_argument('network')
-	parser.add_argument('source')
+	parser.add_argument('name')
 	parser.add_argument('table')
-	parser.add_argument('fit')
-	parser.add_argument('log')
+	parser.add_argument('errorlog')
 	parser.add_argument('batchsize')
-	parser.add_argument('-a',action = 'store_true', help='use attention')
 	parser.add_argument('-r',action = 'store_true', help='reset model parameters')
 	parser.add_argument('features', nargs='*', default=None, help='provide feature directory sources')
 	args = parser.parse_args()
-	network = loadmodel(args.network, args.r)
-	train(network, Path(args.source), Path(args.table), float(args.fit), args.a, Path(args.log), int(args.batchsize), *[Path(i) for i in args.features])
+	network = loadmodel(args.name, args.r)
+	train(network, Path(args.table), Path(args.errorlog), int(args.batchsize), *[Path(i) for i in args.features])
 
 
 

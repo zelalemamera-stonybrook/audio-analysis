@@ -1,6 +1,7 @@
 '''
 The following code specifies a neural network that takes as its input a word (treated as a sequence of syllables) and outputs a sequence of probability distributions (one for each syllable).
-We try to use some sort of attention mechanism to infer the importance of the linguistic features used.
+Each syllable is treated as a vector which is obtained by summarizing a sequence of features generated from the raw audio. This summary is  obtained by an attention mechanism based on the position of the syllable within the
+word.
 '''
 
 import torch
@@ -48,7 +49,7 @@ class Network(nn.Module):
 		self.conv6.bias.data = nn.init.uniform_(self.conv6.bias.data, -0.5 * 4, 0.5 * 4, g_cpu.manual_seed(seed))
 
 
-		self.attnlayer1 = nn.parameter.Parameter(nn.init.uniform_(torch.empty((500, 2000 + 165)),  - 0.5, 0.5, g_cpu.manual_seed(seed)))
+		self.attnlayer1 = nn.parameter.Parameter(nn.init.uniform_(torch.empty((500,600 + 225)),  - 0.5, 0.5, g_cpu.manual_seed(seed)))
 		self.attnlayer1_bias = nn.parameter.Parameter(nn.init.uniform_(torch.empty((500)), - 0.5, 0.5, g_cpu.manual_seed(seed)))
 		self.attnlayer2 = nn.parameter.Parameter(nn.init.uniform_(torch.empty((100, 500) ), - 0.5, 0.5, g_cpu.manual_seed(seed)))
 		self.attnlayer2_bias = nn.parameter.Parameter(nn.init.uniform_(torch.empty((100) ), - 0.5, 0.5, g_cpu.manual_seed(seed)))
@@ -67,26 +68,30 @@ class Network(nn.Module):
 		self.recurrent_right_hidden = nn.parameter.Parameter(nn.init.uniform_(torch.empty((300,300)), -0.5, 0.5, g_cpu.manual_seed(seed)))
 		self.recurrent_right_hidden_bias = nn.parameter.Parameter(nn.init.uniform_(torch.empty((300)), 0, 1, g_cpu.manual_seed(seed)))
 
-		self.recurrent_out1 = nn.parameter.Parameter(nn.init.uniform_(torch.empty((300, 600 + 0)), - 0.5, 0.5, g_cpu.manual_seed(seed)))
-		self.recurrent_out1_bias = nn.parameter.Parameter(nn.init.uniform_(torch.empty((300)), 0, 1, g_cpu.manual_seed(seed)))
-		self.recurrent_out2 = nn.parameter.Parameter(nn.init.uniform_(torch.empty((150, 300) ), - 0.5, 0.5, g_cpu.manual_seed(seed)))
-		self.recurrent_out2_bias = nn.parameter.Parameter(nn.init.uniform_(torch.empty((150,)), 0, 1, g_cpu.manual_seed(seed)))
-		self.recurrent_out3 = nn.parameter.Parameter(nn.init.uniform_(torch.empty((64, 150) ), - 0.5, 0.5, g_cpu.manual_seed(seed)))
-		self.recurrent_out3_bias = nn.parameter.Parameter(nn.init.uniform_(torch.empty((64,)), 0, 1, g_cpu.manual_seed(seed)))
-		self.recurrent_out4 = nn.parameter.Parameter(nn.init.uniform_(torch.empty((2, 64) ), - 0.5, 0.5, g_cpu.manual_seed(seed)))
+		self.recurrent_out1 = nn.parameter.Parameter(nn.init.uniform_(torch.empty((1000, 600 + 1800)), - 0.5, 0.5, g_cpu.manual_seed(seed)))
+		self.recurrent_out1_bias = nn.parameter.Parameter(nn.init.uniform_(torch.empty((1000)), 0, 1, g_cpu.manual_seed(seed)))
+		self.recurrent_out2 = nn.parameter.Parameter(nn.init.uniform_(torch.empty((500, 1000) ), - 0.5, 0.5, g_cpu.manual_seed(seed)))
+		self.recurrent_out2_bias = nn.parameter.Parameter(nn.init.uniform_(torch.empty((500,)), 0, 1, g_cpu.manual_seed(seed)))
+		self.recurrent_out3 = nn.parameter.Parameter(nn.init.uniform_(torch.empty((250, 500) ), - 0.5, 0.5, g_cpu.manual_seed(seed)))
+		self.recurrent_out3_bias = nn.parameter.Parameter(nn.init.uniform_(torch.empty((250,)), 0, 1, g_cpu.manual_seed(seed)))
+		self.recurrent_out4 = nn.parameter.Parameter(nn.init.uniform_(torch.empty((2, 250) ), - 0.5, 0.5, g_cpu.manual_seed(seed)))
 		self.recurrent_out4_bias = nn.parameter.Parameter(nn.init.uniform_(torch.empty((2,)), 0, 1, g_cpu.manual_seed(seed)))
 
 		self.tanh = nn.Tanh()
 		self.sigmoid = nn.Sigmoid()
 		self.softmax = nn.Softmax(dim=-1)
 
-	def forward(self, word: list, features = None):
+	def forward(self, word: list):
 		'''
-		passes the word once through the network, and returns the output
-		word shape: (n, 30000)
-		features shape: (f, n, 250)
-		output shape: (n, 2)
-		where n is the number of syllables >= 2
+		Passes the word once through the network. The architecture of the network is as follows: the input is assumed to be a sequence of syllables where each syllable is
+		a list of feature embeddings. Feature embeddings can come from a variety of sources but they are all generated over the raw audio signal associated with the syllable.
+		First all of these features must be summarized into one vector. For this a simple single headed attention mechanism is used with queries coming from a vector with two pieces of information:
+		1. the position of the current syllable to be summarized, and 2. the total number of syllables that are present in this word. The values are the feature vectors of this syllable, and the keys will be a matrix
+		learned by the network. The output of this step applied to each syllable is a sequence where each syllable is a single vector representing a feature summary.
+		The weights used to generate this summary are used for interpreting feature importance.
+
+		The next step is to apply a bidirectional RNN to the sequence which generates a binary distribution for each syllable interpreted as its likelihood of being stressed. This takes into account the full
+		context surrounding the syllable. The output probabilities are used to make prediction about stress position in the word.
 		'''
 		sound_vec_embedding = []
 		if DEBUG:
@@ -138,43 +143,54 @@ class Network(nn.Module):
 			print(conv_sixth.shape, torch.min(conv_sixth).item(), torch.max(conv_sixth).item(), torch.mean(conv_sixth).item())
 		'''
 		return conv_third.reshape(-1)
-
+##########################################################################################################################################################################
+# This function is not used in the implementation.
 	def convolve(self, conv: Tensor, input: Tensor, bias: Tensor,  stride=1):
 		'''
 		slides conv once over the input signal with stride = n and returns the result
 		'''
-		#print('convolution begins')
+		print('convolution begins')
 		width = len(conv)
-		#print('input received', len(input))
-		#print('width of filter', width)
-		#print('stride', stride)
-		#print('output dimension should be', ((len(input) - width) / stride) + 1)
+		print('input received', len(input))
+		print('width of filter', width)
+		print('stride', stride)
+		print('output dimension should be', ((len(input) - width) / stride) + 1)
 		output = [torch.linalg.vecdot(conv, input[0 + stride * i : width + stride * i] ) + bias for i in range( int((len(input) - width) / stride + 1))]
 		output = torch.stack(output).reshape(-1)
-		#print(output.shape, output, 'min', torch.min(output).item(), 'max', torch.max(output).item())
+		print(output.shape, output, 'min', torch.min(output).item(), 'max', torch.max(output).item())
 		return output
+#
+#############################################################################################################################################################################
 
 
 
 	def attend(self, hidden: Tensor, feature_vecs: Tensor):
 		'''
 		computes the attention score of each element in the list with respect to the other elements, then returns the weighted sum of the whole
-		input shape: (400) + (30) * 4
-		output shape: (400)
 		'''
 		if DEBUG:
 			print('starting attention network')
 		weight_list = []
 		if DEBUG:
 			print('compatibility is computed over', feature_vecs.shape)
+		feature_vecs = [self.sigmoid(f) for f in feature_vecs]
 		for attention_target in feature_vecs:
 			weight_list.append(self.attention_forward(hidden, attention_target))
 		weight_tensor = torch.stack(weight_list).reshape(-1)
 		attention_vector = self.softmax(weight_tensor)
 		print(attention_vector)
-		weighted = torch.matmul(attention_vector, feature_vecs)
+		i = 0
+		weighted_list = []
+		for feature in feature_vecs:
+			weighted_list.append(attention_vector[i] * feature)
+			i +=1
+			if DEBUG:
+				print(f'attention vector {i - 1}', attention_vector[i - 1])
+				print('weighted feature', weighted_list[-1])
+		weighted = torch.cat(weighted_list)
 		if DEBUG:
 			print(weighted.shape, torch.min(weighted).item(), torch.max(weighted).item(), torch.mean(weighted).item())
+			print(weighted)
 		output = torch.cat((hidden, weighted))
 		return attention_vector, output
 

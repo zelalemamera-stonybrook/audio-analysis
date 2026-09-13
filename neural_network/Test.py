@@ -1,5 +1,5 @@
 '''
-The following program tests the performance of the given neural network. It generates f score, accuracy, precision, and recall over the provided dataset.
+The following program tests the performance of Model. It generates f score, accuracy, precision, and recall over the provided dataset.
 in addition, this program also presents the weights that the neural network learned for feature embeddings. This can be used to make a judgement about which features are important.
 '''
 import json
@@ -16,12 +16,13 @@ from TrainNetwork import binarize
 import importlib
 from TrainNetwork import getmaxfeaturedimension
 from Pad import zeropad
+from Train import swap_dimensions, feature_encoder
 SEED = 3529145006359120161
 DEBUG = False
 
-def test(source: str, network, hypothesis: str, table: str, results: str, epochs: int, *features):
+def test(network, hypothesis: str, table: str, results: str, epochs: int, *features):
 	'''
-	tests the network's performance on the source data. The transformed data is saved to hypothesis, then additional statistics are generated from this to be written
+	tests the network's performance on the feature data. The transformed data is saved to hypothesis, then additional statistics are generated from this to be written
 	to results.
 	'''
 	if DEBUG:
@@ -30,24 +31,16 @@ def test(source: str, network, hypothesis: str, table: str, results: str, epochs
 	table = table.set_index('Unnamed: 0')
 	maxfeaturedimension = getmaxfeaturedimension(features)
 	for i in table.index:
-		word,address = getword(i, source)
+		address, wordembeddings = getfeature(i, features, maxfeaturedimension)
 		if DEBUG:
-			print('reading word', address)
-		if features != ():
-			wordembeddings = getfeature(i, features, maxfeaturedimension)
-		else:
-			wordembeddings = None
-		if DEBUG:
-			if wordembeddings:
-				wordembeddingsi = wordembeddings
-				print('input for attention network is', [torch.stack(i).shape for i in wordembeddingsi])
-		y_hat = network.forward(word, wordembeddings)
+			print('input for attention network is',wordembeddings.shape)
+		y_hat = network.forward(wordembeddings)
 		if DEBUG:
 			print('forward complete')
 			print('y_hat', y_hat)
 		writeoutput(address, y_hat, hypothesis)
 	accuracy, precision, recall, fscore = generatestatistics(hypothesis, table)
-	write_statistics(source, accuracy, precision, recall, fscore, epochs, results)
+	write_statistics(accuracy, precision, recall, fscore, epochs, results)
 	write_hypothesis_analysis(hypothesis, table, results, network.attention_weights)
 
 def getword(i: int, source: str):
@@ -64,13 +57,14 @@ def getfeature(i: int, features: tuple, max: int):
 	global SEED
 	g_cpu = torch.Generator()
 	output = []
-	for featuredir in features:
+	word = None
+	for j, featuredir in enumerate(features):
 		word = sorted(list(featuredir.glob(f'{i}_*')))
 		tensors = [torch.load(f) for f in word]
 		if type(tensors[0]) == float:
-			tensors = [torch.nn.init.uniform_(torch.empty((max,)), -1, 1, g_cpu.manual_seed(SEED)) * i for i in tensors]
-		output.append([zeropad(f, max) for f in tensors])
-	return output
+			tensors = [torch.tensor([k]) for k in tensors]
+		output.append([feature_encoder(j + 1, max) + zeropad(f, max) for f in tensors])
+	return word, swap_dimensions(output)
 
 def writeoutput(address: list, y_hat: list, hypothesis: str):
 	'''
@@ -143,23 +137,22 @@ def load_wav_to_vec(model, xpath: str):
 	x = torch.stack(x).detach()
 	return x
 
-def write_statistics(source: str, accuracy: tuple, precision: float, recall: float, fscore: float, epochs: int, results: str):
+def write_statistics(accuracy: tuple, precision: float, recall: float, fscore: float, epochs: int, results: str):
 	'''
 	writes these statistics to the folder results under the model's name
 	'''
 	print(f'writing result for {results}')
 	path = Path(os.path.join(results, Path('statistics.txt')))
-	source = os.path.split(source)[-1]
 	if path.exists():
 		with path.open(mode='a') as f:
-			line = f'{source}\t{epochs}\t{accuracy}\t{precision}\t{recall}\t{fscore}\n'
+			line = f'Praat\t{epochs}\t{accuracy}\t{precision}\t{recall}\t{fscore}\n'
 			f.write(line)
 	else:
 		path.touch()
 		with path.open(mode='w') as f:
 			line = f'data\tepochs\taccuracy\tprecision\trecall\tfscore\n'
 			f.write(line)
-			line = f'{source}\t{epochs}\t{accuracy}\t{precision}\t{recall}\t{fscore}\n'
+			line = f'Praat\t{epochs}\t{accuracy}\t{precision}\t{recall}\t{fscore}\n'
 			f.write(line)
 
 def write_hypothesis_analysis(hypothesis: str, table: DataFrame, results: str, attention_weights: list):
@@ -449,12 +442,13 @@ def load_model(model: str):
 
 if __name__== '__main__':
 	'''
-	source is the directory of the input data; model is the name of the module that has the source code of the model; table is the csv file containing the true labels of the source;
-	hypothesis is a directory where the model's hypothesis will be stored; results is the directory where the model's performance on the source will be written; features is
-	the list of feature directories that are used if the model uses attention.
+	model is the name of the module that has the source code of the model;
+	table is the csv file containing the true labels of the source;
+	hypothesis is a directory where the model's hypothesis will be stored;
+	results is the directory where the model's performance on the source will be written;
+	features is the list of feature directories that are used if the model uses attention.
 	'''
 	parser = argparse.ArgumentParser()
-	parser.add_argument('source')
 	parser.add_argument('model')
 	parser.add_argument('hypothesis')
 	parser.add_argument('table')
@@ -464,5 +458,5 @@ if __name__== '__main__':
 	args = parser.parse_args()
 	network = load_model(args.model)
 
-	test(Path(args.source), network, Path(args.hypothesis), Path(args.table), Path(args.results), args.epochs, *[Path(i) for i in args.features])
+	test(network, Path(args.hypothesis), Path(args.table), Path(args.results), args.epochs, *[Path(i) for i in args.features])
 
