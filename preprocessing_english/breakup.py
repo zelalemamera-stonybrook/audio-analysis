@@ -2,6 +2,8 @@
 takes a tensor and break it up into the intervals provided. Then saves these intervals into the target folder provided.
 '''
 import torch
+import torchaudio
+import torchcodec
 import argparse
 from pathlib import Path
 import os
@@ -12,12 +14,12 @@ def breakup(source, intervals, target):
 	breaks up the source tensor in the intervals provided and saves the result to target
 	'''
 	intervals = extract_intervals(intervals)
-	file = torch.load(source)
+	file, samplerate = torchaudio.load(source)
 	breakup = []
 	for x, y in intervals:
-		breakup.append(file[x:y])
+		breakup.append((file.reshape(-1))[x:y])
 	for j, piece in enumerate(breakup):
-		torch.save(piece, f'{target}/{j}.pt')
+		torchaudio.save(f'{target}/{j}.wav', piece, samplerate)
 
 
 if __name__ == '__main__':
