@@ -1,6 +1,7 @@
 form: "Information"
         text: "source_directory", "input_wav\"
         text: "target_directory", "formant.csv"
+		real: "hertz", "162.0"
 endform
 
 Create Strings as file list: "fileList", source_directory$ + "*.wav"
@@ -12,7 +13,7 @@ for i from 1 to n
         
         writeInfoLine: source_directory$ + wavname$
         
-        intensity = To Intensity: 162.0, 0.0, "yes"
+        intensity = To Intensity: hertz, 0.0, "yes"
         matrix = Down to Matrix
         tableofreal = To TableOfReal
         table = To Table: "none"

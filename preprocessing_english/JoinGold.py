@@ -12,16 +12,19 @@ def join_gold(goldsource, wordsource, wordid, sentenceid, dictsource, id, target
 	'''
 	Generates a table of the following format:
 
-		text	ipa	syllables	stress
-	0	present	<>	2	2
+	text	ipa	syllables	stress
+	present	<>	2	2
 
 	this table is saved to the target
 	'''
+	print("labelling sentence", sentenceid, "word", wordid, "\n")
 	labels = sorted(list(Path(goldsource).glob("*.pt")), key = lambda x: extract_int(x))
 	word = get_word(wordid, wordsource)
 	dictionary = extract_dictionary(dictsource)
 	label = 0
 	transcription = ''
+	if len(labels) == 0:
+		raise ValueError("no labels found")
 	if word not in dictionary.keys():
 		label = get_label(labels)
 		transcription = 'unavailable'
@@ -30,15 +33,15 @@ def join_gold(goldsource, wordsource, wordid, sentenceid, dictsource, id, target
 		label = get_label(labels)
 	if Path(target).exists():
 		outputstream = open(target, mode = 'a')
-		line = f'{id},{word},{transcription},{len(labels)},{label}\n'
+		line = f'{word},{transcription},{len(labels)},{label}\n'
 		print(line)
 		outputstream.write(line)
 	else:
 		outputstream = open(target, mode = 'a')
-		line = '\t,text,ipa,syllables,stress\n'
+		line = 'text,ipa,syllables,stress\n'
 		outputstream.write(line)
 		print(line)
-		line = f'{id},{word},{transcription},{len(labels)},{label}\n'
+		line = f'{word},{transcription},{len(labels)},{label}\n'
 		print(line)
 		outputstream.write(line)
 

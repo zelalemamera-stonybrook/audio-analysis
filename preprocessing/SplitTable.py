@@ -9,6 +9,7 @@ import torch
 from PrepareAlignments import split_data
 import pandas as pd
 import os
+seed = 3529145006359120161
 
 
 

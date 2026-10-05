@@ -64,7 +64,9 @@ def breakup_word(audiostream, samplerate, syllabification, target):
 	i = 0
 	print('breaking up', audiostream.shape)
 	for x, y in syllabification:
-		print(f'{target}/{i}.wav')
+		print(f'{target}/{i}.wav', audiostream[x:y].shape)
+		if len(audiostream[x:y]) == 0:
+			raise ValueError("empty syllable")
 		torchaudio.save(f'{target}/{i}.wav',audiostream[x:y], samplerate)
 		i+=1
 		print('\n')

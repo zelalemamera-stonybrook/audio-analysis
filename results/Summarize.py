@@ -10,22 +10,20 @@ import pandas as pd
 def summarize(target: str, *tables):
 	'''
 	goes through each table and generates a summary of the statistics in the table. The result is written as one row in a table saved to target.
+	Currently, only the row with the maximum fscore value is kept.
 	'''
 	if target.exists():
 		targetstream = target.open(mode='a')
 	else:
 		targetstream = target.open(mode='w')
-		targetstream.write('data\tmean_precision\tmax_precision\tmean_recall\tmax_recall\tmean_f\tmax_f\n')
+		targetstream.write('data\tepochs\tprecision\trecall\tfscore\n')
 	for path in tables:
 		table = pd.read_csv(path)
 		name = table['data'][0]
-		precision = table['precision']
-		meanp, maxp = round(float(precision.mean()), 4), round(float(precision.max()), 4)
-		sensitivity = table['recall']
-		means, maxs = round(float(sensitivity.mean()), 4), round(float(sensitivity.max()), 4)
 		fscore = table['fscore']
-		meanf, maxf = round(float(fscore.mean()), 4), round(float(fscore.max()), 4)
-		targetstream.write(f'{name}\t{meanp}\t{maxp}\t{means}\t{maxs}\t{meanf}\t{maxf}\n')
+		i = fscore.argmax()
+		epoch, precision, recall, fscore = table['epochs'][i], table['precision'][i], table['recall'][i], table['fscore'][i]
+		targetstream.write(f'{name}\t{epoch}\t{precision}\t{recall}\t{fscore}\n')
 
 
 

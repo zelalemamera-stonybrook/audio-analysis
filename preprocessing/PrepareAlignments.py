@@ -16,6 +16,7 @@ from pandas import DataFrame
 import shutil
 import os
 import subprocess
+seed = 3529145006359120161
 
 path = Path('data/ipa_to_mfa.json')
 model_symbols = {}
@@ -53,9 +54,9 @@ def split_data(data: dict):
 	print('splitting data')
 	split = {}
 	for key, val in data.items():
-		train = val.sample(frac = .8)
+		train = val.sample(frac = .8, random_state=seed // 2 ** 30)
 		remainder = val.drop(list(train.index))
-		test = remainder.sample(frac = .5)
+		test = remainder.sample(frac = .5, random_state=seed // 2 ** 30)
 		dev = remainder.drop(list(test.index))
 
 		split['train'] = train

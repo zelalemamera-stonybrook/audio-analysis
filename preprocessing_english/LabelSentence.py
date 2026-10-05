@@ -41,19 +41,22 @@ def label_sentence(source, words, dictionary, target, id):
 def verify_syllable_count(labels, source):
 	'''
 	The number of syllables in the source audio direcory does not always match the number of syllables obtained from the lexicon dictionary. This
-	function makes a simplifying assumption and pads the remainder at the end of the label vector.
+	function makes a simplifying assumption and equalizes the label vector with the number of audio syllable samples.
 	'''
 	source = Path(source)
 	syllables = list(source.glob('*.wav'))
 	n = len(syllables)
 	m = len(labels)
+	if n == 0:
+		return [0]
+	if sum(labels) != 1:
+		return [0]
+	print("audio samples", n)
+	print("lexicon syllables", m)
 	if n - m > 0:
-		for i in range(n - m):
-			labels.append(0)
+		return [0]
 	if n - m < 0:
-		labels = torch.zeros((n,))
-		labels[0] = 1
-		labels = labels.tolist()
+		return [0]
 	return labels
 
 def get_edgecases(word, i):
@@ -63,12 +66,15 @@ def get_edgecases(word, i):
 	'''
 	if word in ['live', 'criss', 'zig', 'zagged', 'use']:
 		return [1]
+	if word in ['respect']:
+		return [0,1]
 	if word == 'present' and i == 175:
 		return [0,1]
 	if word == 'present' and (i in [274, 272, 68]):
 		return [1,0]
 	if word == 'wound' and (i in [237]):
 		return [1]
+	return [0]
 
 
 

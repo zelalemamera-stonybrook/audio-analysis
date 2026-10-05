@@ -19,7 +19,7 @@ class Network(nn.Module):
 		print('initializing parameters')
 		self.name = 'Model'
 
-		self.input_dim = 225
+		self.input_dim = 354
 		self.seq_len = 8
 		self.hidden_dim = 512 // 2
 		self.output_dim = 512
@@ -28,13 +28,13 @@ class Network(nn.Module):
 
 		g_cpu = torch.Generator()
 
-		#seed = 3529145006359120161
+		seed = 3529145006359120161
 		#seed = 9249168034906996919
-		seed = 13979071961427503144
+		#seed = 13979071961427503144
 		#seed = 13472831205784841605
 		#seed = 8820161422455662510
 
-		self.keys = nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.seq_len, self.input_dim)), 0, 1, g_cpu.manual_seed(seed)))
+		self.keys = nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.seq_len, self.input_dim)), -0.05, 0.05, g_cpu.manual_seed(seed)))
 		self.heads = nn.ParameterList(
 				[nn.ParameterList(
 					[nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.input_dim // self.nheads, self.input_dim)), -0.05, 0.05, g_cpu.manual_seed(seed))),
@@ -43,7 +43,7 @@ class Network(nn.Module):
 					) for i in range(self.nheads)
 				]
 				)
-		self.multihead_out = nn.parameter.Parameter(nn.init.uniform_(torch.empty(((self.input_dim // self.nheads) * self.nheads), self.output_dim), -0.5, 0.5, g_cpu.manual_seed(seed)))
+		self.multihead_out = nn.parameter.Parameter(nn.init.uniform_(torch.empty(((self.input_dim // self.nheads) * self.nheads), self.output_dim), -0.05, 0.05, g_cpu.manual_seed(seed)))
 
 		self.attention_weights = []
 
@@ -97,12 +97,14 @@ class Network(nn.Module):
 		if DEBUG:
 			print('embedding syllables')
 		attention_list = []
+		query_vector = self.obtain_query(word)
 		for i, syll in enumerate(word):
 			if DEBUG:
 				print('syll received', syll.shape)
 			pos = i + 1
 			total = len(word)
-			attention_vector, summary = self.multi_attention_forward(torch.cat([self.position_encoder(pos), self.position_encoder(total), torch.tensor([0])]), syll)
+			feature_encoding = torch.cat([self.position_encoder(pos), self.position_encoder(total)])
+			attention_vector, summary = self.multi_attention_forward(feature_encoding + query_vector, syll)
 			sound_vec_embedding.append(summary)
 			print(attention_vector)
 			attention_list.append(attention_vector.tolist())
@@ -110,6 +112,22 @@ class Network(nn.Module):
 		output = self.rnn_forward(sound_vec_embedding)
 		print('finished forward pass')
 		return output
+
+	def obtain_query(self, word: list):
+		'''
+		The architecture of this model creates an awkward situation where we need to build an attention distribution over the sequence but do not
+		have a query vector coming from previous decoder layers, nor do we want to use self attention because the output sequence cannot be the same length
+		as the input. For this, the proposed solution is to use a special query vector which is built out of position and total syllable information. In addition to this,
+		an average of all of the feature vectors is provided. The reasoning for this is that since the multihead attention is shared across the syllables, the query vector should include
+		information from each syllable.
+		'''
+		query_vector = torch.zeros((self.input_dim,))
+		n = 0
+		for syll in word:
+			for vec in syll:
+				query_vector += vec
+				n+=1
+		return query_vector / n
 
 	def position_encoder(self, i: int):
 		'''

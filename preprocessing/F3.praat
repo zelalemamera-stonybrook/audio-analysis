@@ -1,6 +1,7 @@
 form: "Information"
         text: "source_directory", "input_wav\"
         text: "target_directory", "formant.csv"
+		real: "hertz", "5"
 endform
 
 Create Strings as file list: "fileList", source_directory$ + "*.wav"

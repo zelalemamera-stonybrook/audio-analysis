@@ -42,10 +42,40 @@ featurize ()
 	python "preprocessing/Dur.py" "data/alignment/syllabified_audio" "data/features/Dur"
 
 	echo "generating Praat features"
-	for name in {Intensity,F0,F1,F2,F3,F4,F5};
+	for name in Intensity;
 		do
 		mkdir "data/features/"$name"csv"
-		$PRAAT --run "preprocessing/"$name".praat" "../data/alignment/syllabified_audio/" "../data/features/"$name"csv/"
+		hz=160
+		while ! $PRAAT --run "preprocessing/"$name".praat" "../data/alignment/syllabified_audio/" "../data/features/"$name"csv/" $hz;do
+			hz=$(($hz+1));done
+
+		echo "transforming to tensors"
+		mkdir "data/features/"$name"pt"
+		python "preprocessing/Csvtopt.py" "data/features/"$name"csv" "data/features/"$name"pt"
+
+		rm -r "data/features/"$name"csv";
+		done
+
+	for name in F0;
+		do
+		mkdir "data/features/"$name"csv"
+		floor=75
+		while ! $PRAAT --run "preprocessing/"$name".praat" "../data/alignment/syllabified_audio/" "../data/features/"$name"csv/" $floor;do
+			floor=$(($floor+1));done
+
+		echo "transforming to tensors"
+		mkdir "data/features/"$name"pt"
+		python "preprocessing/Csvtopt.py" "data/features/"$name"csv" "data/features/"$name"pt"
+
+		rm -r "data/features/"$name"csv";
+		done
+
+	for name in {F1,F2,F3,F4,F5};
+		do
+		mkdir "data/features/"$name"csv"
+		hz=160
+		while ! $PRAAT --run "preprocessing/"$name".praat" "../data/alignment/syllabified_audio/" "../data/features/"$name"csv/" $hz;do
+			hz=$(($hz+1));done
 
 		echo "transforming to tensors"
 		mkdir "data/features/"$name"pt"
@@ -120,4 +150,4 @@ normalize ()
 }
 
 #align&syllabify&featurize&split&balance&normalize
-normalize
+featurize&&split&&balance&&normalize

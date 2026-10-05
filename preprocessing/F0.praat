@@ -3,6 +3,7 @@
 form: "Information"
 	text: "source_directory", "input_wav\"
 	text: "target_directory", "pitch.csv"
+	real: "hertz", "75"
 endform
 
 Create Strings as file list: "fileList", source_directory$ + "*.wav"
@@ -13,7 +14,7 @@ for i from 1 to n
 	iD$ = selected$ ("Sound", 1)
 	writeInfoLine: source_directory$ + wavname$
 
-	pitch = To Pitch (filtered autocorrelation): 0.0, 75.0, 800.0, 15, "no", 0.03, 0.09, 0.50, 0.055, 0.35, 0.14
+	pitch = To Pitch (filtered autocorrelation): 0.0, hertz, 800.0, 15, "no", 0.03, 0.09, 0.50, 0.055, 0.35, 0.14
 	matrix = To Matrix
 	tableofreal = To TableOfReal
 	table = To Table: "none"

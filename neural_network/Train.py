@@ -26,7 +26,7 @@ def train(network, table: str, log: str, batchsize: int, *features):
 	table = table.set_index('Unnamed: 0')
 
 	error_history = []
-	optim = torch.optim.SGD(network.parameters(), lr=0.001,  momentum=0.5)
+	optim = torch.optim.SGD(network.parameters(), lr=0.0001,  momentum=0.5)
 	network.feature_weights = []
 
 	numberofbatches = len(table) // batchsize
@@ -98,15 +98,19 @@ def getbatch(i: int, source: str, table: list):
 			print('gold label for word', y[-1])
 	return x, y
 
-def getfeaturebatch(i: int, features: tuple, table: list, max: int):
+def getfeaturebatch(n: int, features: tuple, table: list, max: int):
 	'''
-	gets the features from batch i of the table. for each word in the batch, features is a list of directories that contain the different representations of that word.
+	gets the features from batch n of the table. for each word in the batch, features is a list of directories that contain the different representations of that word.
 	'''
 	global SEED
-	batch = table[i]
+	batch = table[n]
 	output = []
 	y = []
+	if DEBUG:
+		print('getting batch', n, '\n')
 	for i, j in batch:
+		if DEBUG:
+			print('word', i, 'with', j, 'stress')
 		wordfeatures = []
 		word_len = 0
 		for f, folder in enumerate(features):
@@ -117,6 +121,8 @@ def getfeaturebatch(i: int, features: tuple, table: list, max: int):
 				if type(tensor) == float:
 					tensor = torch.tensor([tensor])
 				word.append(feature_encoder(f + 1, max) + zeropad(tensor, max))
+			if DEBUG:
+				print('word', '(', len(word), ',', word[0].shape[0], ')', 'feature', f, '\n')
 			wordfeatures.append(word)
 			word_len = len(word)
 		output.append(swap_dimensions(wordfeatures))
@@ -281,6 +287,8 @@ def binarize(i: int, n: int):
 	'''
 	returns a list of length n, with all zeros except at position i
 	'''
+	if DEBUG:
+		print('binarizing', i, 'of', n, '\n')
 	output = torch.zeros((n,))
 	output[ i ] = 1
 	return output.tolist()
