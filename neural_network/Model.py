@@ -23,8 +23,8 @@ class Network(nn.Module):
 		self.seq_len = 8
 		self.hidden_dim = 512 // 2
 		self.output_dim = 512
-		self.nheads = 3
-		self.nlayers = 3
+		self.nheads = 5
+		self.nlayers = 5
 
 		g_cpu = torch.Generator()
 
@@ -151,7 +151,7 @@ class Network(nn.Module):
 		for Q, K, V in self.heads:
 			vec, output = self.attention_forward(torch.matmul(Q ,query), torch.matmul(self.keys, K.T), torch.matmul(values, V.T))
 			head_outputs.append(output)
-			if i == 0:
+			if i == 3:
 				attention_vector = vec
 			i+=1
 		final = torch.matmul(torch.cat(head_outputs), self.multihead_out)

@@ -17,11 +17,12 @@ SEED = 3529145006359120161
 
 DEBUG = False
 
-def train(network, source: str, table: str, fit: float, attention: bool, log: str, batchsize: int, *features):
+def train(network, source: str, table: str, log: str, batchsize: int, *features):
 	'''
 	Trains the neural network exactly one epoch. An epoch is defined as one training pass over the input data. The data is batched before being passed to the model. Error is computed per batch
 	and backpropagated before loading in the next batch.
 	'''
+	attention = False
 	table = pd.read_csv(table)
 	table = table.set_index('Unnamed: 0')
 
@@ -43,14 +44,14 @@ def train(network, source: str, table: str, fit: float, attention: bool, log: st
 		else:
 			f = listfull(None, batchsize)
 		for vector, feature, gold in zip(x, f, y):
-			if True:
+			if DEBUG:
 				vectori = torch.stack(vector)
 				print('input vector statistics', 'length', vectori.shape, torch.min(vectori).item(), torch.max(vectori).item(), torch.mean(vectori).item(), 'dimensions', torch.count_nonzero(vectori, dim=1).tolist())
 				if feature:
 					featurei = torch.stack([torch.stack(i) for i in feature])
 					print('input feature statistics', featurei.shape, torch.min(featurei).item(), torch.max(featurei).item(), torch.mean(featurei).item())
 				print(gold)
-			y_hat = network.forward(vector, feature)
+			y_hat = network.forward(vector)
 			if True:
 				print( y_hat, 'gold', gold)
 			error += compute_loss(y_hat, gold)
@@ -294,15 +295,13 @@ if __name__ == '__main__':
 	parser.add_argument('network')
 	parser.add_argument('source')
 	parser.add_argument('table')
-	parser.add_argument('fit')
 	parser.add_argument('log')
 	parser.add_argument('batchsize')
-	parser.add_argument('-a',action = 'store_true', help='use attention')
 	parser.add_argument('-r',action = 'store_true', help='reset model parameters')
 	parser.add_argument('features', nargs='*', default=None, help='provide feature directory sources')
 	args = parser.parse_args()
 	network = loadmodel(args.network, args.r)
-	train(network, Path(args.source), Path(args.table), float(args.fit), args.a, Path(args.log), int(args.batchsize), *[Path(i) for i in args.features])
+	train(network, Path(args.source), Path(args.table),Path(args.log), int(args.batchsize), *[Path(i) for i in args.features])
 
 
 

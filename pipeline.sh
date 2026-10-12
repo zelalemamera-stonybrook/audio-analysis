@@ -83,17 +83,27 @@ featurize ()
 
 		rm -r "data/features/"$name"csv";
 		done
+}
 
+mel ()
+{
 	echo "generating melspectrogram"
 	mkdir "data/features/Mel"
 	$PRAAT --run "preprocessing/Mel.praat" "../data/alignment/syllabified_audio/" "../data/features/Mel/"
+}
 
+wav2vec ()
+{
 	echo "generating vector embeddings"
 	mkdir "data/features/Wav2vecpt"
 	python "preprocessing/Wav2vec.py" "data/alignment/syllabified_audio" "data/features/Wav2vecpt"
 
+}
+
+pad ()
+{
 	echo "padding feature directories"
-	for name in {F{0,1,2,3,4,5},Intensity,Wav2vec};
+	for name in {F{0,1,2,3,4,5},Intensity};
 		do
 		mkdir data/features/$name
 		python preprocessing/Pad.py "data/features/"$name"pt" data/features/$name
@@ -118,7 +128,7 @@ split ()
 	python "preprocessing/SplitTable.py" "data/table.csv" "data"
 	for batch in {train,test,dev};
 		do
-		for name in {Raw,Dur,F{0,1,2,3,4,5},Intensity,Wav2vec};
+		for name in {Raw,Dur,F{0,1,2,3,4,5},Intensity};
 			do
 			echo "splitting "$name" to "$batch
 			rm -r "data/"$batch"/"$name
@@ -144,10 +154,13 @@ normalize ()
 			do
 			rm -r "data/"$batch"/"$feature"norm"
 			mkdir "data/"$batch"/"$feature"norm"
-			python preprocessing/Normalize.py data/$batch/$feature "data/"$batch"/"$feature"norm";
+			rm -r "data/"$batch"/"$feature"speakernorm"
+			mkdir "data/"$batch"/"$feature"speakernorm"
+			python preprocessing/NormalizeSpeakers.py data/$batch/$feature data/$batch/table.csv "data/"$batch"/"$feature"speakernorm"
+			python preprocessing/Normalize.py "data/"$batch"/"$feature"speakernorm" "data/"$batch"/"$feature"norm";
 			done;
 		done
 }
 
-#align&syllabify&featurize&split&balance&normalize
-featurize&&split&&balance&&normalize
+
+balance&&normalize

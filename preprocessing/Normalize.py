@@ -16,23 +16,24 @@ def normalize(source: str, target: str):
 	'''
 	if DEBUG:
 		print("normalizing", source)
-	dim, size = collect_statistics(source)
-	total = torch.zeros((dim,))
+#	dim, size = collect_statistics(source)
+#	total = torch.zeros((dim,))
+#	for file in source.iterdir():
+#		vector = torch.load(file)
+#		if type(vector) == float:
+#			vector = torch.tensor([vector])
+#		total += vector
+#	mean = total / size
+#	std = compute_deviation(source, mean, dim, size)
+#	if DEBUG:
+#		print('mean is', mean)
+#		print('std:', std)
 	for file in source.iterdir():
 		vector = torch.load(file)
 		if type(vector) == float:
 			vector = torch.tensor([vector])
-		total += vector
-	mean = total / size
-	std = compute_deviation(source, mean, dim, size)
-	if DEBUG:
-		print('mean is', mean)
-		print('std:', std)
-	for file in source.iterdir():
-		vector = torch.load(file)
-		if type(vector) == float:
-			vector = torch.tensor([vector])
-		normal = torch.nan_to_num(torch.div((vector - mean), std))
+#		normal = torch.nan_to_num(torch.div((vector - mean), std))
+		normal = torch.sigmoid(torch.nan_to_num(vector * .01))
 		if DEBUG:
 			print("normalized", normal)
 		filename = os.path.split(file)[-1]

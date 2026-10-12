@@ -26,7 +26,7 @@ def train(network, table: str, log: str, batchsize: int, *features):
 	table = table.set_index('Unnamed: 0')
 
 	error_history = []
-	optim = torch.optim.SGD(network.parameters(), lr=0.0001,  momentum=0.5)
+	optim = torch.optim.SGD(network.parameters(), lr=0.001,  momentum=0.5)
 	network.feature_weights = []
 
 	numberofbatches = len(table) // batchsize

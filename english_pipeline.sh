@@ -96,3 +96,4 @@ for sentence in $(ls data_english/Train/syllable/audio);
 }
 
 makeSentences&&makeWords&&makeSyllables&&joinPipeline
+

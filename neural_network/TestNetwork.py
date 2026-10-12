@@ -41,7 +41,7 @@ def test(source: str, network, hypothesis: str, table: str, results: str, epochs
 			if wordembeddings:
 				wordembeddingsi = wordembeddings
 				print('input for attention network is', [torch.stack(i).shape for i in wordembeddingsi])
-		y_hat = network.forward(word, wordembeddings)
+		y_hat = network.forward(word)
 		if DEBUG:
 			print('forward complete')
 			print('y_hat', y_hat)
@@ -454,8 +454,8 @@ if __name__== '__main__':
 	the list of feature directories that are used if the model uses attention.
 	'''
 	parser = argparse.ArgumentParser()
-	parser.add_argument('source')
 	parser.add_argument('model')
+	parser.add_argument('source')
 	parser.add_argument('hypothesis')
 	parser.add_argument('table')
 	parser.add_argument('results')
