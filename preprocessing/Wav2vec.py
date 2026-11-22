@@ -9,7 +9,7 @@ import torchcodec
 import argparse
 import os
 import re
-
+verbose = True
 
 def get_embedding(source: str, target: str):
 	'''
@@ -21,6 +21,11 @@ def get_embedding(source: str, target: str):
 	for file in source.iterdir():
 		print("embedding", file, "...")
 		waveform, samplerate = torchaudio.load(file)
+		if waveform.shape[-1] < 500:
+			waveform = torch.cat((waveform.reshape(-1), torch.zeros((500,))))
+			waveform = waveform.reshape((1, waveform.shape[-1]))
+		if verbose:
+			print("extracted sound vector:", waveform.shape)
 		with torch.no_grad():
 			vecs, _ = model.extract_features(waveform)
 			embedding = vecs[-1].reshape(-1)

@@ -1,4 +1,4 @@
-'''
+'''.
 The following program tests the performance of Model. It generates f score, accuracy, precision, and recall over the provided dataset.
 in addition, this program also presents the weights that the neural network learned for feature embeddings. This can be used to make a judgement about which features are important.
 '''
@@ -19,12 +19,16 @@ from Pad import zeropad
 from Train import swap_dimensions, feature_encoder
 SEED = 3529145006359120161
 DEBUG = False
+mps = torch.device('mps')
+torch.set_default_device(mps)
+
 
 def test(network, hypothesis: str, table: str, results: str, epochs: int, *features):
 	'''
 	tests the network's performance on the feature data. The transformed data is saved to hypothesis, then additional statistics are generated from this to be written
 	to results.
 	'''
+	network.to(torch.device('mps'))
 	if DEBUG:
 		print('table is', table)
 	table = pd.read_csv(table)
@@ -60,10 +64,17 @@ def getfeature(i: int, features: tuple, max: int):
 	word = None
 	for j, featuredir in enumerate(features):
 		word = sorted(list(featuredir.glob(f'{i}_*')))
+		if DEBUG:
+			print(word)
 		tensors = [torch.load(f) for f in word]
 		if type(tensors[0]) == float:
 			tensors = [torch.tensor([k]) for k in tensors]
-		output.append([feature_encoder(j + 1, max) + zeropad(f, max) for f in tensors])
+		if DEBUG:
+			print([t.shape for t in tensors])
+		wordembedding = torch.stack([feature_encoder(j + 1, max) + zeropad(f, max) for f in tensors])
+		if DEBUG:
+			print(wordembedding.shape)
+		output.append(wordembedding)
 	return word, swap_dimensions(output)
 
 def writeoutput(address: list, y_hat: list, hypothesis: str):

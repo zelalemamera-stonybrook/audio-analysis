@@ -1,0 +1,4 @@
+
+FIRST = "hello"
+SECOND = "world"
+

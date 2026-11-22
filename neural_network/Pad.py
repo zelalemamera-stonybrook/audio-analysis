@@ -10,7 +10,8 @@ import torchcodec
 from pathlib import Path
 import os
 import re
-
+verbose = False
+mps = torch.device('mps')
 
 def pad(source: str, target: str):
 	'''
@@ -42,15 +43,16 @@ def zeropad(waveform: Tensor, max: int):
 	'''
 	adds a max number of zeros from the left and the right
 	'''
-	#print('padding to', max)
 	waveform = waveform.reshape(-1)
-	#print('input shape', waveform.shape)
+	if verbose:
+		print('received', waveform.shape)
+		print('padding to', max)
 	padsize = max - len(waveform)
-	pad1 = torch.zeros((padsize//2, ))
-	pad2 = torch.zeros((padsize//2, ))
+	pad1 = torch.zeros((padsize//2, ), device=mps)
+	pad2 = torch.zeros((padsize//2, ), device=mps)
 	waveform = torch.cat((pad1, waveform, pad2))
 	if padsize % 2 == 1:
-		waveform = torch.cat((waveform, torch.tensor([0])))
+		waveform = torch.cat((waveform, torch.tensor([0], device=mps)))
 	#print('padded vector', waveform.shape)
 	return waveform
 

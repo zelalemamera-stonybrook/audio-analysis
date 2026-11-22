@@ -1,5 +1,5 @@
 '''
-the following program splits the contents of the input directory by a pregenerated and provided dictionary.
+The following program  splits the table in question.
 '''
 import argparse
 import torch

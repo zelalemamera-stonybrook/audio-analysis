@@ -34,7 +34,7 @@ buildpraat ()
 }
 trainpraat ()
 {
-	python neural_network/Train.py Model data/train/balanced.csv results/Model/errorlog.txt 25 -r data/train/{Intensitynorm,F{0,1,2,3,4,5}norm,Dur}
+	python neural_network/Train.py Model data/train/balanced.csv results/Model/errorlog.txt 100 -r data/train/{Intensitynorm,F{0,1,2,3,4,5}norm,Dur}
 	rm -r results/Model/hypothesis
 	mkdir results/Model/hypothesis
 	python neural_network/Test.py Model results/Model/hypothesis data/dev/table.csv results/Model 0 data/dev/{Intensitynorm,F{0,1,2,3,4,5}norm,Dur}
@@ -45,6 +45,20 @@ trainpraat ()
 
 	for ((i=0;i<$1;++i));
 		do
+		python neural_network/Train.py Model data/train/balanced.csv results/Model/errorlog.txt 100 data/train/{Intensitynorm,F{0,1,2,3,4,5}norm,Dur}
+		rm -r results/Model/hypothesis
+		mkdir results/Model/hypothesis
+		python neural_network/Test.py Model results/Model/hypothesis data/dev/table.csv results/Model $i data/dev/{Intensitynorm,F{0,1,2,3,4,5}norm,Dur}
+		reset Model $i;
+		done
+	echo -e '\a'
+}
+
+addmoreEpochs ()
+{
+	# the current model is trained on some number of epochs, this function adds the specified number of epochs to its training time for research purposes.
+	for ((i=0;i<$1;++i));
+		do
 		python neural_network/Train.py Model data/train/balanced.csv results/Model/errorlog.txt 25 data/train/{Intensitynorm,F{0,1,2,3,4,5}norm,Dur}
 		rm -r results/Model/hypothesis
 		mkdir results/Model/hypothesis
@@ -52,6 +66,7 @@ trainpraat ()
 		reset Model $i;
 		done
 	echo -e '\a'
+
 }
 
 reset ()
@@ -67,6 +82,7 @@ reset ()
 
 
 #buildpraat
-trainpraat 100
+trainpraat 37
+#addmoreEpochs 1
 #test
 #train BaselineModel 100

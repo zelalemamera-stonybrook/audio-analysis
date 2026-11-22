@@ -17,7 +17,7 @@ class Network(nn.Module):
 		print('initializing parameters')
 		self.name = 'RawModel'
 
-		self.input_dim = 349
+		self.input_dim = 207 # input dimension is the output dimension of the convolutional layer
 		self.hidden_dim = 512 // 2
 		self.output_dim = 512
 		self.nlayers = 5
@@ -25,7 +25,7 @@ class Network(nn.Module):
 		self.stride = 2
 		self.filter_size = 5
 		self.nchannels = 10
-		self.nconvolutions = 3
+		self.nconvolutions = 5
 
 		g_cpu = torch.Generator()
 

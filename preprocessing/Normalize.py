@@ -33,9 +33,10 @@ def normalize(source: str, target: str):
 		if type(vector) == float:
 			vector = torch.tensor([vector])
 #		normal = torch.nan_to_num(torch.div((vector - mean), std))
-		normal = torch.sigmoid(torch.nan_to_num(vector * .01))
-		if DEBUG:
-			print("normalized", normal)
+#		normal = torch.sigmoid(torch.nan_to_num(vector * .01))
+		normal = torch.nan_to_num(vector)
+#		if DEBUG:
+#			print("normalized", normal)
 		filename = os.path.split(file)[-1]
 		torch.save(normal, os.path.join(target, filename))
 

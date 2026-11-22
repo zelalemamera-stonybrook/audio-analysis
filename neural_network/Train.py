@@ -14,6 +14,8 @@ import pandas as pd
 from pandas import DataFrame
 import re
 SEED = 3529145006359120161
+mps = torch.device('mps')
+torch.set_default_device(mps)
 
 DEBUG = False
 
@@ -22,6 +24,7 @@ def train(network, table: str, log: str, batchsize: int, *features):
 	Trains the neural network exactly one epoch. An epoch is defined as one training pass over the input data. The data is batched before being passed to the model. Error is computed per batch
 	and backpropagated before loading in the next batch. The average, minimum, and maximum batch error over the whole training session is logged as the error history for this epoch.
 	'''
+	network.to(torch.device('mps'))
 	table = pd.read_csv(table)
 	table = table.set_index('Unnamed: 0')
 
@@ -45,6 +48,7 @@ def train(network, table: str, log: str, batchsize: int, *features):
 			y_hat = network.forward(feature)
 			if True:
 				print( y_hat, 'gold', gold)
+				print(y_hat.device)
 			error += compute_loss(y_hat, gold)
 		if True:
 			print('batch error', error)
@@ -53,6 +57,7 @@ def train(network, table: str, log: str, batchsize: int, *features):
 		error.backward()
 		print('updating the parameters')
 		optim.step()
+		print("parameters updated")
 	writemodel(network, f'{network.name}.json')
 	logerrorhistory(error_history, log)
 
@@ -117,9 +122,9 @@ def getfeaturebatch(n: int, features: tuple, table: list, max: int):
 			word = []
 			files = sorted(list(folder.glob(f'{i}_*')))
 			for file in files:
-				tensor = torch.load(file)
+				tensor = torch.load(file, map_location=mps)
 				if type(tensor) == float:
-					tensor = torch.tensor([tensor])
+					tensor = torch.tensor([tensor], device=mps)
 				word.append(feature_encoder(f + 1, max) + zeropad(tensor, max))
 			if DEBUG:
 				print('word', '(', len(word), ',', word[0].shape[0], ')', 'feature', f, '\n')
@@ -135,7 +140,7 @@ def feature_encoder(f: int, dim: int):
 	value should not be identical from the  point of view of the model, adding a feature encoding allows the model to distinguish individual
 	features by their unique id.
 	'''
-	vector = torch.empty((dim,))
+	vector = torch.empty((dim,), device=mps)
 	for d in range(len(vector)):
 		if d % 2 == 0:
 			vector[d] = torch.sin( torch.tensor(f / (10000 ** (d / dim))))
@@ -154,7 +159,7 @@ def swap_dimensions(matrix: list):
 		syllable = []
 		for word in matrix:
 			syllable.append(word[i])
-		swapped.append(torch.stack(syllable))
+		swapped.append(torch.stack([zeropad(i, 354) for i in syllable]))
 	return torch.stack(swapped)
 
 def getmaxfeaturedimension(features: tuple):
@@ -165,6 +170,8 @@ def getmaxfeaturedimension(features: tuple):
 	'''
 	max = 0
 	for folder in features:
+		if DEBUG:
+			print("finding maximum", folder)
 		file = next(folder.glob('*'))
 		tensor = torch.load(file)
 		if type(tensor) == float:
@@ -276,7 +283,7 @@ def compute_loss(y_hat: Tensor, y: Tensor):
 		binary_list.append(binarize(int(n), 2))
 		if DEBUG:
 			print('gold distribution', binary_list[-1])
-	y = torch.Tensor(binary_list)
+	y = torch.tensor(binary_list, device=mps)
 	distance = torch.add(y, y_hat, alpha=-1)
 	error = 0.5 * (torch.linalg.vecdot(distance, distance)).sum()
 	if DEBUG:

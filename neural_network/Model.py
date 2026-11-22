@@ -9,11 +9,14 @@ import torchaudio
 import torch.nn as nn
 from torch import Tensor
 DEBUG = False
+mps = torch.device('mps')
+torch.set_default_device(mps)
 
 class Network(nn.Module):
 	'''
 	neural network implementation for the above
 	'''
+
 	def __init__(self):
 		super().__init__()
 		print('initializing parameters')
@@ -26,7 +29,7 @@ class Network(nn.Module):
 		self.nheads = 5
 		self.nlayers = 5
 
-		g_cpu = torch.Generator()
+		g_cpu = torch.Generator(device=mps)
 
 		seed = 3529145006359120161
 		#seed = 9249168034906996919
@@ -34,46 +37,46 @@ class Network(nn.Module):
 		#seed = 13472831205784841605
 		#seed = 8820161422455662510
 
-		self.keys = nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.seq_len, self.input_dim)), -0.05, 0.05, g_cpu.manual_seed(seed)))
+		self.keys = nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.seq_len, self.input_dim), device=mps), -0.05, 0.05, g_cpu.manual_seed(seed)))
 		self.heads = nn.ParameterList(
 				[nn.ParameterList(
-					[nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.input_dim // self.nheads, self.input_dim)), -0.05, 0.05, g_cpu.manual_seed(seed))),
-					nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.input_dim // self.nheads, self.input_dim)), -0.05, 0.05, g_cpu.manual_seed(seed))),
-					nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.input_dim // self.nheads, self.input_dim)), -0.05, 0.05, g_cpu.manual_seed(seed)))]
+					[nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.input_dim // self.nheads, self.input_dim), device=mps), -0.05, 0.05, g_cpu.manual_seed(seed))),
+					nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.input_dim // self.nheads, self.input_dim), device=mps), -0.05, 0.05, g_cpu.manual_seed(seed))),
+					nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.input_dim // self.nheads, self.input_dim), device=mps), -0.05, 0.05, g_cpu.manual_seed(seed)))]
 					) for i in range(self.nheads)
 				]
 				)
-		self.multihead_out = nn.parameter.Parameter(nn.init.uniform_(torch.empty(((self.input_dim // self.nheads) * self.nheads), self.output_dim), -0.05, 0.05, g_cpu.manual_seed(seed)))
+		self.multihead_out = nn.parameter.Parameter(nn.init.uniform_(torch.empty((((self.input_dim // self.nheads) * self.nheads), self.output_dim), device=mps), -0.05, 0.05, g_cpu.manual_seed(seed)))
 
 		self.attention_weights = []
 
 		self.recurrent_left = nn.ParameterList(
 						[nn.ParameterList(
-						[nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.hidden_dim, self.output_dim) ),  - 0.5, 0.5, g_cpu.manual_seed(seed))),
-						nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.hidden_dim) ), 0, 1, g_cpu.manual_seed(seed))),
-						nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.hidden_dim,self.hidden_dim)), -0.5, 0.5, g_cpu.manual_seed(seed))),
-						nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.hidden_dim)), 0, 1, g_cpu.manual_seed(seed)))]
+						[nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.hidden_dim, self.output_dim), device=mps),  - 0.5, 0.5, g_cpu.manual_seed(seed))),
+						nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.hidden_dim), device=mps), 0, 1, g_cpu.manual_seed(seed))),
+						nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.hidden_dim,self.hidden_dim), device=mps), -0.5, 0.5, g_cpu.manual_seed(seed))),
+						nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.hidden_dim), device=mps), 0, 1, g_cpu.manual_seed(seed)))]
 						) for i in range(self.nlayers)]
 					)
 
 
 		self.recurrent_right = nn.ParameterList(
 						[nn.ParameterList(
-						[nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.hidden_dim, self.output_dim) ),  - 0.5, 0.5, g_cpu.manual_seed(seed))),
-						nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.hidden_dim) ), 0, 1, g_cpu.manual_seed(seed))),
-						nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.hidden_dim,self.hidden_dim)), -0.5, 0.5, g_cpu.manual_seed(seed))),
-						nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.hidden_dim)), 0, 1, g_cpu.manual_seed(seed)))]
+						[nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.hidden_dim, self.output_dim), device = mps),  - 0.5, 0.5, g_cpu.manual_seed(seed))),
+						nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.hidden_dim), device=mps), 0, 1, g_cpu.manual_seed(seed))),
+						nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.hidden_dim,self.hidden_dim), device=mps), -0.5, 0.5, g_cpu.manual_seed(seed))),
+						nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.hidden_dim), device=mps), 0, 1, g_cpu.manual_seed(seed)))]
 						) for i in range(self.nlayers)]
 					)
 
-		self.recurrent_out1 = nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.output_dim, self.hidden_dim * 2)), - 0.5, 0.5, g_cpu.manual_seed(seed)))
-		self.recurrent_out1_bias = nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.output_dim)), 0, 1, g_cpu.manual_seed(seed)))
-		self.recurrent_out2 = nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.output_dim // 2, self.output_dim) ), - 0.5, 0.5, g_cpu.manual_seed(seed)))
-		self.recurrent_out2_bias = nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.output_dim // 2,)), 0, 1, g_cpu.manual_seed(seed)))
-		self.recurrent_out3 = nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.output_dim // 4, self.output_dim // 2) ), - 0.5, 0.5, g_cpu.manual_seed(seed)))
-		self.recurrent_out3_bias = nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.output_dim // 4,)), 0, 1, g_cpu.manual_seed(seed)))
-		self.recurrent_out4 = nn.parameter.Parameter(nn.init.uniform_(torch.empty((2, self.output_dim // 4) ), - 0.5, 0.5, g_cpu.manual_seed(seed)))
-		self.recurrent_out4_bias = nn.parameter.Parameter(nn.init.uniform_(torch.empty((2,)), 0, 1, g_cpu.manual_seed(seed)))
+		self.recurrent_out1 = nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.output_dim, self.hidden_dim * 2), device = mps), - 0.5, 0.5, g_cpu.manual_seed(seed)))
+		self.recurrent_out1_bias = nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.output_dim), device=mps), 0, 1, g_cpu.manual_seed(seed)))
+		self.recurrent_out2 = nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.output_dim // 2, self.output_dim), device=mps ), - 0.5, 0.5, g_cpu.manual_seed(seed)))
+		self.recurrent_out2_bias = nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.output_dim // 2,), device=mps), 0, 1, g_cpu.manual_seed(seed)))
+		self.recurrent_out3 = nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.output_dim // 4, self.output_dim // 2), device=mps ), - 0.5, 0.5, g_cpu.manual_seed(seed)))
+		self.recurrent_out3_bias = nn.parameter.Parameter(nn.init.uniform_(torch.empty((self.output_dim // 4,), device=mps), 0, 1, g_cpu.manual_seed(seed)))
+		self.recurrent_out4 = nn.parameter.Parameter(nn.init.uniform_(torch.empty((2, self.output_dim // 4), device=mps ), - 0.5, 0.5, g_cpu.manual_seed(seed)))
+		self.recurrent_out4_bias = nn.parameter.Parameter(nn.init.uniform_(torch.empty((2,), device=mps), 0, 1, g_cpu.manual_seed(seed)))
 
 		self.tanh = nn.Tanh()
 		self.sigmoid = nn.Sigmoid()
@@ -121,7 +124,7 @@ class Network(nn.Module):
 		an average of all of the feature vectors is provided. The reasoning for this is that since the multihead attention is shared across the syllables, the query vector should include
 		information from each syllable.
 		'''
-		query_vector = torch.zeros((self.input_dim,))
+		query_vector = torch.zeros((self.input_dim,), device=mps)
 		n = 0
 		for syll in word:
 			for vec in syll:
@@ -133,7 +136,7 @@ class Network(nn.Module):
 		'''
 		implements the same position encoding function from vaswani et. al
 		'''
-		position_vector = torch.empty((self.input_dim // 2,))
+		position_vector = torch.empty((self.input_dim // 2,), device=mps)
 		for dim in range(len(position_vector)):
 			if dim % 2 == 0:
 				position_vector[dim] = torch.sin( torch.tensor(i / (10000 ** (dim / self.output_dim))))
@@ -151,7 +154,7 @@ class Network(nn.Module):
 		for Q, K, V in self.heads:
 			vec, output = self.attention_forward(torch.matmul(Q ,query), torch.matmul(self.keys, K.T), torch.matmul(values, V.T))
 			head_outputs.append(output)
-			if i == 3:
+			if i == 0:
 				attention_vector = vec
 			i+=1
 		final = torch.matmul(torch.cat(head_outputs), self.multihead_out)
@@ -208,7 +211,7 @@ class Network(nn.Module):
 		implements one pass of the left rnn at the specified layer. Returns the hidden states of the rnn.
 		'''
 		recurrent_left_in, recurrent_left_in_bias, recurrent_left_hidden, recurrent_left_hidden_bias = self.recurrent_left[layer]
-		prev = torch.ones((recurrent_left_hidden.shape[0]),)
+		prev = torch.ones((recurrent_left_hidden.shape[0]),device=mps)
 		hidden_list = []
 		if DEBUG:
 			print('left rnn')
@@ -228,7 +231,7 @@ class Network(nn.Module):
 		'''
 		reverse_hidden_list = []
 		recurrent_right_in, recurrent_right_in_bias, recurrent_right_hidden, recurrent_right_hidden_bias = self.recurrent_right[layer]
-		prev = torch.ones((recurrent_right_hidden.shape[0]),)
+		prev = torch.ones((recurrent_right_hidden.shape[0]),device=mps)
 		n = len(sequence) - 1
 		if DEBUG:
 			print('right rnn')

@@ -43,4 +43,4 @@ reset ()
 }
 
 
-train 100
+train 21

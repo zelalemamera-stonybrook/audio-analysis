@@ -15,21 +15,18 @@ def normalize_speakers(source, table, target):
 	'''
 	print('normalizing speakers for ', source)
 	dim, size = collect_statistics(source)
+	print("statistics", dim, size)
 	for i in table.index:
 		words = list(source.glob(f'{i}_*.pt'))
-		total = torch.zeros((dim,))
-		vecs = []
-		for word in words:
-			vecs.append(torch.load(word))
-			if type(vecs[-1]) == float:
-				print(vecs[-1])
-				vecs[-1] = torch.tensor([vecs[-1]])
-			total+= vecs[-1]
-		average = total / len(words)
-		print('average value found across', len(words), 'syllables', average)
+		vecs = [torch.load(i) for i in words]
+		if type(vecs[0]) == float:
+			vecs = [torch.tensor([i]) for i in vecs]
+		vec = torch.cat(vecs)
+		avg = torch.mean(vec)
+		std = torch.std(vec)
 		for word, vec in zip(words, vecs):
 			name = os.path.split(word)[-1]
-			torch.save(vec - average, os.path.join(target, name))
+			torch.save((vec - avg) / std, os.path.join(target, name))
 
 
 if __name__ == '__main__':
@@ -37,4 +34,7 @@ if __name__ == '__main__':
 	source = sys.argv[1]
 	table = sys.argv[2]
 	target = sys.argv[3]
-	normalize_speakers(Path(source), pd.read_csv(table).set_index('Unnamed: 0'), Path(target))
+	table = pd.read_csv(table)
+	if "Unnamed: 0" in table.columns:
+		table = table.set_index("Unnamed: 0")
+	normalize_speakers(Path(source), table, Path(target))
